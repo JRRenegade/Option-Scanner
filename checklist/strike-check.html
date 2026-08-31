@@ -1,0 +1,708 @@
+<title>Strike Check</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f3f4ef;
+    --surface: #ffffff;
+    --surface-alt: #e9ebe3;
+    --ink: #17221e;
+    --ink-muted: #57645d;
+    --ink-faint: #8b968f;
+    --border: #d9ddd1;
+    --accent: #a86a2c;
+    --accent-ink: #7a4c1c;
+    --accent-soft: #f0e2cc;
+    --good: #1f7a4c;
+    --good-soft: #dfeee4;
+    --bad: #ad3d2c;
+    --bad-soft: #f3e1dc;
+    --chip-bg: #eef0e8;
+    --shadow: 0 1px 2px rgba(23,34,30,0.06), 0 6px 20px rgba(23,34,30,0.05);
+    --focus: #3d6b8a;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12181a;
+      --surface: #182022;
+      --surface-alt: #1f292c;
+      --ink: #e9ede9;
+      --ink-muted: #a3b0a8;
+      --ink-faint: #6f7d76;
+      --border: #2b3538;
+      --accent: #d79a54;
+      --accent-ink: #f0c68f;
+      --accent-soft: #3a2c19;
+      --good: #58b585;
+      --good-soft: #1c3128;
+      --bad: #e08876;
+      --bad-soft: #3a2320;
+      --chip-bg: #212b2d;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 24px rgba(0,0,0,0.35);
+      --focus: #7fb3d5;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #12181a;
+    --surface: #182022;
+    --surface-alt: #1f292c;
+    --ink: #e9ede9;
+    --ink-muted: #a3b0a8;
+    --ink-faint: #6f7d76;
+    --border: #2b3538;
+    --accent: #d79a54;
+    --accent-ink: #f0c68f;
+    --accent-soft: #3a2c19;
+    --good: #58b585;
+    --good-soft: #1c3128;
+    --bad: #e08876;
+    --bad-soft: #3a2320;
+    --chip-bg: #212b2d;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 24px rgba(0,0,0,0.35);
+    --focus: #7fb3d5;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2.75rem 1.5rem 4rem;
+  }
+
+  header.page {
+    margin-bottom: 1.75rem;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0 0 0.6rem;
+  }
+
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(1.9rem, 4vw, 2.4rem);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 0.4rem;
+    color: var(--ink);
+  }
+
+  .sub {
+    color: var(--ink-muted);
+    font-size: 0.98rem;
+    max-width: 54ch;
+    margin: 0;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 0.35rem;
+    margin: 2rem 0 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 0.7rem 1rem 0.65rem;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 500;
+    font-size: 0.92rem;
+    color: var(--ink-muted);
+    cursor: pointer;
+    position: relative;
+    top: 1px;
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+  }
+
+  .tab:hover { color: var(--ink); }
+
+  .tab[aria-selected="true"] {
+    color: var(--ink);
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .tab .count {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    background: var(--chip-bg);
+    border-radius: 999px;
+    padding: 0.1rem 0.42rem;
+  }
+
+  .tab[aria-selected="true"] .count {
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+  }
+
+  .tab:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* Panel */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    box-shadow: var(--shadow);
+    padding: 1.75rem 1.75rem 1.5rem;
+  }
+
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .strategy-note {
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+    margin: 0 0 1.4rem;
+    max-width: 58ch;
+    white-space: pre-line;
+  }
+
+  .reset-btn {
+    appearance: none;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    border-radius: 6px;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .reset-btn:hover { color: var(--bad); border-color: var(--bad); }
+  .reset-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .callout {
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .callout summary {
+    cursor: pointer;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  .callout ul {
+    margin: 0.7rem 0 0;
+    padding-left: 1.1rem;
+    color: var(--ink);
+    font-size: 0.88rem;
+  }
+
+  .callout li { margin-bottom: 0.4rem; }
+  .callout li:last-child { margin-bottom: 0; }
+
+  section.group {
+    margin-bottom: 1.6rem;
+  }
+
+  section.group:last-child { margin-bottom: 0.25rem; }
+
+  .group-title {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.65rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.6rem 0.25rem;
+    border-radius: 8px;
+  }
+
+  .item:hover { background: var(--surface-alt); }
+
+  .item input[type="checkbox"] {
+    appearance: none;
+    width: 1.15rem;
+    height: 1.15rem;
+    border: 1.5px solid var(--ink-faint);
+    border-radius: 5px;
+    margin-top: 0.15rem;
+    flex-shrink: 0;
+    cursor: pointer;
+    position: relative;
+    background: var(--surface);
+  }
+
+  .item input[type="checkbox"]:checked {
+    background: var(--good);
+    border-color: var(--good);
+  }
+
+  .item input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: -1px;
+    width: 5px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .item input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .item-text { flex: 1; min-width: 0; }
+
+  .item-title {
+    font-size: 0.94rem;
+    color: var(--ink);
+    display: block;
+  }
+
+  .item.checked .item-title {
+    color: var(--ink-faint);
+    text-decoration: line-through;
+    text-decoration-color: var(--border);
+  }
+
+  .item-why {
+    font-size: 0.82rem;
+    color: var(--ink-muted);
+    margin-top: 0.15rem;
+    white-space: pre-line;
+  }
+
+  .chip {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent-ink);
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.15rem 0.45rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  .chip.good { color: var(--good); }
+  .chip.bad { color: var(--bad); }
+
+  footer.page {
+    margin-top: 2rem;
+    text-align: center;
+  }
+
+  footer.page p {
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    max-width: 48ch;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 520px) {
+    .tabs { overflow-x: auto; }
+    .panel { padding: 1.4rem 1.1rem 1.2rem; }
+    .chip { display: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="page">
+    <p class="eyebrow">Pre-trade review</p>
+    <h1>Strike Check</h1>
+    <p class="sub">Run through these before placing the trade. Checks are saved on this device only and reset whenever you're ready for the next setup.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Strategy"></div>
+  <div class="panel" role="tabpanel"></div>
+
+  <footer class="page">
+    <p>A personal pre-trade reference, not investment advice. Always weigh current market conditions and your own risk tolerance.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var DATA = {
+    "covered-calls": {
+      label: "Covered Calls",
+      note: "Selling calls against stock you own.\nThe two Bollinger Band rules collapse into one strike-placement-by-goal decision, and delta now splits with it: ~0.20 to keep the stock, ~0.30–0.40 if you're trying to exit.\nAlso folds in IV/IV rank, liquidity, earnings/ex-dividend timing, cost basis vs. strike, and lot sizing.",
+      changeLog: [
+        "Split the two Bollinger Band lines into a single “goal-based strike” rule, since they're two sides of the same decision.",
+        "Clarified delta: ~0.20 fits the “keep the stock” goal. Raised to ~0.30–0.40 when the goal is to exit, since a fixed 0.20 target quietly assumed only one goal.",
+        "Added checks that were implied but not written down: IV/IV rank, liquidity (spread + open interest), earnings/ex-dividend timing, cost basis vs. strike, and lot sizing."
+      ],
+      groups: [
+        {
+          title: "Timing & chart",
+          items: [
+            { t: "Chart matches the expiration cycle", w: "1-month chart for weeklies, 3-month chart for monthlies.", chip: "1M / 3M" },
+            { t: "No earnings or ex-dividend date before expiration", w: "Unless you're deliberately trading around one. Both raise early-assignment or gap risk." }
+          ]
+        },
+        {
+          title: "Trend & momentum",
+          items: [
+            { t: "Stock having a green day at entry?", w: "Quick short-term momentum read before you sell." },
+            { t: "RSI level checked", w: "Overbought favors selling into strength.\nOversold favors waiting or selling further out.", chip: "RSI" },
+            { t: "Price vs. the 20-day MA", w: "Rising MA supports letting the stock run.\nFlattening or falling MA supports selling closer to the money." },
+            { t: "Price vs. the 50/200-day MA", w: "Broader trend context beyond the short-term picture." }
+          ]
+        },
+        {
+          title: "Strike placement",
+          items: [
+            { t: "Goal is to keep the stock → strike above the upper Bollinger Band", w: "Lower delta, less likely to be reached.", chip: "Keep", chipClass: "good" },
+            { t: "Goal is to let it go → strike near or just below the upper Bollinger Band", w: "Higher probability of assignment.", chip: "Exit", chipClass: "bad" },
+            { t: "Strike sits above your cost basis", w: "Unless you're deliberately okay selling at a loss if assigned." }
+          ]
+        },
+        {
+          title: "Volume & liquidity",
+          items: [
+            { t: "Volume elevated vs. average, and in which direction?", w: "Confirms strength or flags possible reversal." },
+            { t: "Bid-ask spread and open interest checked", w: "Thin markets cost you on the fill." }
+          ]
+        },
+        {
+          title: "Premium & risk",
+          items: [
+            { t: "Delta target set by goal", w: "~0.20 to keep the stock.\n~0.30–0.40 if you're trying to exit.", chip: "Δ 0.20" },
+            { t: "IV / IV rank checked", w: "Higher IV means richer premium for the same strike." },
+            { t: "Contracts match shares owned", w: "One contract per 100 shares." }
+          ]
+        }
+      ]
+    },
+    "credit-spreads": {
+      label: "Credit Spreads",
+      note: "Vertical spreads sold for a net credit. Put spreads for a bullish lean, call spreads for a bearish one.\nCovers directional bias and DTE/chart matching, RSI and moving-average confirmation, IV rank (elevated IV is what you want here), short-strike delta (~0.15–0.30) and placement, liquidity, and risk management: a 50% profit target, a defined stop, position sizing, and managing around 21 DTE.",
+      groups: [
+        {
+          title: "Setup & timing",
+          items: [
+            { t: "Directional bias set", w: "Bullish → put credit spread. Bearish → call credit spread." },
+            { t: "Chart matches your DTE", w: "1-month chart for short-dated trades, 3-month chart around the classic 30–45 DTE window.", chip: "30–45 DTE" },
+            { t: "No earnings or major catalyst before expiration", w: "Unless the catalyst is the actual thesis." }
+          ]
+        },
+        {
+          title: "Trend & momentum",
+          items: [
+            { t: "RSI direction supports the trade", w: "Put spread on RSI turning up from oversold.\nCall spread on RSI turning down from overbought.", chip: "RSI" },
+            { t: "Price vs. 20/50-day MA supports the short strike staying OTM", w: "Bull put: price above both MAs, 20-day above 50-day. Trend and dynamic support work with your strike.\nBear call: price below both, 20-day below 50-day. Trend and resistance work with it.\nNo clean alignment means the trend isn't backing you. Widen the strike or wait." },
+            { t: "Broader market trend agrees", w: "Check SPY/QQQ (or sector) isn't fighting your position." }
+          ]
+        },
+        {
+          title: "Volatility",
+          items: [
+            { t: "IV Rank / Percentile checked", w: "Credit spreads want elevated IV. Richer premium for the risk taken.", chip: "High IVR" },
+            { t: "IV expanding or contracting into the trade?", w: "Expanding IV can work against a short premium position even if price doesn't move." }
+          ]
+        },
+        {
+          title: "Strike & structure",
+          items: [
+            { t: "Short strike delta target set", w: "Typically ~0.15–0.30, depending on the win-rate vs. premium trade-off you want.", chip: "Δ 0.15–0.30" },
+            { t: "Short strike placed beyond support/resistance", w: "Or outside the recent Bollinger Band range for extra cushion." },
+            { t: "Spread width checked against risk/reward", w: "Wider width = more credit but more max loss." }
+          ]
+        },
+        {
+          title: "Volume & liquidity",
+          items: [
+            { t: "Open interest and volume sufficient on both legs" },
+            { t: "Bid-ask spread reasonably tight" },
+            { t: "Any unusual volume or options flow noted" }
+          ]
+        },
+        {
+          title: "Risk management",
+          items: [
+            { t: "Profit target set", w: "Commonly 50% of max credit received.", chip: "50% target" },
+            { t: "Stop-loss or adjustment trigger defined", w: "E.g., short strike breached, or loss reaches 1–2x the credit." },
+            { t: "Position sized against max loss", w: "As a percentage of the account, not just margin available." },
+            { t: "Plan to manage or close around 21 DTE", w: "Avoids the worst of gamma risk into expiration.", chip: "21 DTE" }
+          ]
+        }
+      ]
+    },
+    "leaps": {
+      label: "LEAPS",
+      note: "Long-dated calls (typically 12+ months out), usually run as a stock substitute or a longer-term directional bet.\nCovers long-term trend on the weekly/monthly chart, fundamentals worth checking over a longer hold, IV rank (buy low here, the opposite of credit spreads), delta by use case (~0.70–0.85 as a stock substitute, ~0.50–0.60 for leverage), liquidity in a typically thinner chain, and cost/exit planning: no dividends while you hold it, and a rolling plan before decay accelerates.",
+      groups: [
+        {
+          title: "Long-term trend",
+          items: [
+            { t: "Weekly or monthly chart reviewed", w: "LEAPS run for months. The daily chart isn't the relevant timeframe." },
+            { t: "Price vs. 50/200-day MA", w: "A golden cross (50 crossing above 200) is a supportive sign." },
+            { t: "Weekly RSI checked", w: "Avoid initiating right at an overbought extreme." }
+          ]
+        },
+        {
+          title: "Fundamentals",
+          items: [
+            { t: "Earnings, launches, or sector catalysts expected during the hold", w: "A longer hold means more of these to plan around." },
+            { t: "Underlying business/sector health considered", w: "You're making a longer commitment than a weekly or monthly trade." }
+          ]
+        },
+        {
+          title: "Volatility & pricing",
+          items: [
+            { t: "IV Rank checked", w: "Prefer entering when IV is relatively low or average. You're paying for time premium.", chip: "Low IVR" },
+            { t: "Extrinsic value compared to a shorter-dated option", w: "Is the extra time worth the extra cost for your thesis?" }
+          ]
+        },
+        {
+          title: "Strike & delta",
+          items: [
+            { t: "Delta ~0.70–0.85 for a stock-substitute LEAP", w: "Behaves like owning shares, for less capital.", chip: "Δ 0.70–0.85" },
+            { t: "Delta ~0.50–0.60 for more leverage", w: "More upside, more risk, more time-decay exposure.", chip: "Δ 0.50–0.60" },
+            { t: "Strike checked against Bollinger Bands / key support", w: "For entry timing." }
+          ]
+        },
+        {
+          title: "Volume & liquidity",
+          items: [
+            { t: "Open interest and bid-ask spread checked", w: "LEAP chains are often thinner than front-month options." },
+            { t: "Volume direction noted in the underlying", w: "Accumulation vs. distribution." }
+          ]
+        },
+        {
+          title: "Cost & exit plan",
+          items: [
+            { t: "No dividends while holding the LEAP", w: "Factor the opportunity cost into your return comparison vs. owning shares." },
+            { t: "Rolling or exit plan set", w: "Before theta accelerates in the final months." },
+            { t: "Position size vs. buying shares outright compared" }
+          ]
+        }
+      ]
+    }
+  };
+
+  var STORAGE_KEY = "strike-check-v1";
+  var order = ["covered-calls", "credit-spreads", "leaps"];
+  var state = {};
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      state = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      state = {};
+    }
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {}
+  }
+
+  function itemKey(stratId, groupIdx, itemIdx) {
+    return stratId + ":" + groupIdx + ":" + itemIdx;
+  }
+
+  function countChecked(stratId) {
+    var strat = DATA[stratId];
+    var total = 0, checked = 0;
+    strat.groups.forEach(function (g, gi) {
+      g.items.forEach(function (it, ii) {
+        total++;
+        if (state[itemKey(stratId, gi, ii)]) checked++;
+      });
+    });
+    return { checked: checked, total: total };
+  }
+
+  var tabsEl = document.querySelector(".tabs");
+  var panelEl = document.querySelector(".panel");
+  var activeId = order[0];
+
+  function renderTabs() {
+    tabsEl.innerHTML = "";
+    order.forEach(function (id) {
+      var c = countChecked(id);
+      var btn = document.createElement("button");
+      btn.className = "tab";
+      btn.type = "button";
+      btn.setAttribute("role", "tab");
+      btn.setAttribute("aria-selected", id === activeId ? "true" : "false");
+      btn.id = "tab-" + id;
+      btn.setAttribute("aria-controls", "panel-content");
+      btn.innerHTML = DATA[id].label + ' <span class="count">' + c.checked + "/" + c.total + "</span>";
+      btn.addEventListener("click", function () {
+        activeId = id;
+        renderTabs();
+        renderPanel();
+      });
+      tabsEl.appendChild(btn);
+    });
+  }
+
+  function renderPanel() {
+    var strat = DATA[activeId];
+    panelEl.innerHTML = "";
+    panelEl.id = "panel-content";
+    panelEl.setAttribute("aria-labelledby", "tab-" + activeId);
+
+    var head = document.createElement("div");
+    head.className = "panel-head";
+
+    var noteWrap = document.createElement("div");
+    var note = document.createElement("p");
+    note.className = "strategy-note";
+    note.textContent = strat.note;
+    noteWrap.appendChild(note);
+    head.appendChild(noteWrap);
+
+    var resetBtn = document.createElement("button");
+    resetBtn.className = "reset-btn";
+    resetBtn.type = "button";
+    resetBtn.textContent = "Reset checks";
+    resetBtn.addEventListener("click", function () {
+      strat.groups.forEach(function (g, gi) {
+        g.items.forEach(function (it, ii) {
+          delete state[itemKey(activeId, gi, ii)];
+        });
+      });
+      saveState();
+      renderTabs();
+      renderPanel();
+    });
+    head.appendChild(resetBtn);
+    panelEl.appendChild(head);
+
+    if (strat.changeLog) {
+      var details = document.createElement("details");
+      details.className = "callout";
+      var summary = document.createElement("summary");
+      summary.textContent = "What changed from your original list";
+      details.appendChild(summary);
+      var ul = document.createElement("ul");
+      strat.changeLog.forEach(function (line) {
+        var li = document.createElement("li");
+        li.textContent = line;
+        ul.appendChild(li);
+      });
+      details.appendChild(ul);
+      panelEl.appendChild(details);
+    }
+
+    strat.groups.forEach(function (g, gi) {
+      var section = document.createElement("section");
+      section.className = "group";
+
+      var h = document.createElement("p");
+      h.className = "group-title";
+      h.textContent = g.title;
+      section.appendChild(h);
+
+      g.items.forEach(function (it, ii) {
+        var key = itemKey(activeId, gi, ii);
+        var row = document.createElement("label");
+        row.className = "item" + (state[key] ? " checked" : "");
+
+        var cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!state[key];
+        cb.addEventListener("change", function () {
+          if (cb.checked) state[key] = true; else delete state[key];
+          saveState();
+          row.className = "item" + (cb.checked ? " checked" : "");
+          renderTabs();
+          var activeTab = document.getElementById("tab-" + activeId);
+          if (activeTab) activeTab.setAttribute("aria-selected", "true");
+        });
+
+        var textWrap = document.createElement("span");
+        textWrap.className = "item-text";
+        var title = document.createElement("span");
+        title.className = "item-title";
+        title.textContent = it.t;
+        textWrap.appendChild(title);
+        if (it.w) {
+          var why = document.createElement("span");
+          why.className = "item-why";
+          why.textContent = it.w;
+          textWrap.appendChild(document.createElement("br"));
+          textWrap.appendChild(why);
+        }
+
+        row.appendChild(cb);
+        row.appendChild(textWrap);
+
+        if (it.chip) {
+          var chip = document.createElement("span");
+          chip.className = "chip" + (it.chipClass ? " " + it.chipClass : "");
+          chip.textContent = it.chip;
+          row.appendChild(chip);
+        }
+
+        section.appendChild(row);
+      });
+
+      panelEl.appendChild(section);
+    });
+  }
+
+  loadState();
+  renderTabs();
+  renderPanel();
+})();
+</script>
