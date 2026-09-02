@@ -181,3 +181,34 @@ def check_freshness(conn: sqlite3.Connection, tickers: list) -> dict:
             "iv_date": iv_date,
         }
     return report
+
+
+def _is_caught_up(latest_date_str: str | None) -> bool:
+    """Stricter than is_fresh: true only if latest_date_str is exactly the
+    most recent expected trading day, no slack. Used by the daemon to
+    decide whether a ticker needs a re-fetch. (is_fresh's 1-day grace is
+    the right call for combined_scanner.py deciding whether to trust the
+    cache enough to score against, but it's the wrong call here: it would
+    let the daemon skip re-fetching a ticker for a full extra day after
+    a new close is already available.)"""
+    if not latest_date_str:
+        return False
+    latest = dt.date.fromisoformat(latest_date_str[:10])
+    expected = _last_expected_trading_day(dt.date.today())
+    return latest >= expected
+
+
+def tickers_needing_refresh(conn: sqlite3.Connection, tickers: list) -> dict:
+    """Returns {ticker: {"price_needs_refresh": bool, "iv_needs_refresh": bool}}
+    for every ticker in the list. Used by market_data_daemon.py to decide
+    which tickers are actually behind, so a poll cycle where nothing has
+    changed does zero IBKR requests instead of re-checking everything."""
+    report = {}
+    for ticker in tickers:
+        p_date = latest_price_date(conn, ticker)
+        iv_date = latest_iv_date(conn, ticker)
+        report[ticker] = {
+            "price_needs_refresh": not _is_caught_up(p_date),
+            "iv_needs_refresh": not _is_caught_up(iv_date),
+        }
+    return report

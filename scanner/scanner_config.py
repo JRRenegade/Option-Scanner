@@ -78,6 +78,13 @@ PACING_LIMIT = 55           # stay safely under IBKR's ~60-requests-per-10-minut
 PACING_WINDOW_SEC = 600     # the rolling window that limit applies over
 DIVIDEND_WAIT_SEC = 2.0     # covered call only: time to let the dividend tick populate
 
+# How often the daemon wakes up to check whether anything needs a refresh.
+# Cheap to check often, it's a local SQLite read, not an IBKR request, so
+# this just controls how quickly the daemon notices a new trading day's
+# bar is available. It does NOT mean 138 requests every 30 minutes: most
+# cycles find nothing to do and skip straight back to sleep.
+DAEMON_REFRESH_INTERVAL_SEC = 1800   # 30 minutes
+
 MAX_FILENAME_ATTEMPTS = 20   # how many _1, _2, ... suffixes to try before giving up
 
 

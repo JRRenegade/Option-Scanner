@@ -45,12 +45,23 @@ run.
 
 Two pieces:
 
-**The daemon** (`market_data_daemon.py`) connects to IBKR once, backfills
-price and IV history for every unique ticker across all four watchlists,
-then opens a standing "keep up to date" subscription per ticker so IBKR
-streams new bars to it instead of you re-requesting history every time.
+**The daemon** (`market_data_daemon.py`) connects to IBKR once, then
+polls: every `DAEMON_REFRESH_INTERVAL_SEC` (30 minutes by default) it
+checks the local cache against today's date, and for any ticker whose
+newest cached bar isn't from the most recent trading day yet, makes a
+plain one-shot `reqHistoricalData` request to catch it up. Checking
+freshness is just a local SQLite read, so a poll cycle where nothing is
+behind costs zero IBKR requests, most cycles in a day do exactly that.
 Every update gets written into `market_data.db` (SQLite, created
 automatically, lives in `scanner/`).
+
+(An earlier version tried IBKR's "keep up to date" streaming mode
+instead of polling, but that mode needs a live/real-time tick feed to
+know when to push updates, and this project intentionally runs on
+delayed data to avoid paying for real-time market data subscriptions.
+Under delayed data every streaming subscription just hung and timed
+out, so the daemon polls instead, the same plain request the original
+standalone scanners already used successfully.)
 
 **The scanner** (`combined_scanner.py`) reads from that database. It
 makes no historical data requests at all, so there's no IBKR pacing
@@ -97,10 +108,11 @@ python market_data_daemon.py
 python combined_scanner.py
 ```
 
-The first time the daemon runs, the initial backfill respects IBKR's
-pacing limit (~60 historical data requests per rolling 10 minutes), so
-with 69 tickers it can take roughly 15-20 minutes. After that, it just
-streams updates, no more waiting.
+The first time the daemon runs against a cold cache, catching up every
+ticker respects IBKR's pacing limit (~60 historical data requests per
+rolling 10 minutes), so with 69 tickers it can take roughly 15-20
+minutes. After that, most poll cycles find nothing behind and finish
+instantly, no more waiting.
 
 `combined_scanner.py` prints results to the terminal and saves, next to
 itself:

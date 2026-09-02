@@ -6,27 +6,36 @@ market_data_daemon.py
 A long-lived process that keeps market_data.db current so combined_scanner.py
 never has to talk to IBKR for historical data at all.
 
-WHY A DAEMON INSTEAD OF FETCHING ON EVERY SCAN
+THIS IS A POLLING DAEMON, NOT A STREAMING ONE
 --------------------------------------------------
-Across the four strategies there are 69 unique tickers, which is 138
-historical data requests (a price series and an IV series per ticker).
-IBKR enforces a hard ceiling of roughly 60 historical data requests per
-rolling 10-minute window, so fetching everything fresh on every scan means
-running into that ceiling and pausing partway through, twice, adding
-around 15-20 minutes to a run.
+An earlier version of this script tried to use IBKR's "keep up to date"
+historical data mode (reqHistoricalData(..., keepUpToDate=True)) to hold
+standing subscriptions that IBKR streams updates into. In testing against
+a real account, every single subscription timed out immediately
+(ib_async's own "reqHistoricalData: Timeout" followed by IBKR's "Error
+366: No historical data query found") no matter which ticker. That
+pattern, universal and instant across every symbol, is the signature of
+a structural mismatch, not a per-symbol data problem: keepUpToDate needs
+a live tick stream to know when to push a bar update, and this setup
+intentionally runs on delayed data (USE_DELAYED_DATA = True in
+scanner_config.py, so it works without paying for real-time market data
+subscriptions). Delayed data has no live feed to drive keepUpToDate, so
+the request just hangs until the client gives up.
 
-This script instead opens a STANDING subscription per ticker per series
-using IBKR's "keep up to date" historical data mode. That's one request
-per (ticker, series) to open, same pacing cost as a normal fetch, but
-after that IBKR pushes bar updates to this process as they happen instead
-of you re-requesting the whole history. So the pacing limit only applies
-once, when this daemon starts (or restarts after being off for a while),
-never again while it keeps running. Every update gets written straight
-into market_data.db (see market_data_cache.py).
+So this version does the boring, reliable thing instead: it wakes up
+every DAEMON_REFRESH_INTERVAL_SEC (scanner_config.py), checks the cache
+against today's date, and for any ticker that's actually behind (its
+newest cached bar isn't from the most recent trading day yet), makes a
+plain one-shot reqHistoricalData call, the exact same call the original
+standalone scanners already used successfully on delayed data, no
+keepUpToDate involved.
 
-combined_scanner.py then just reads from that database. No live IBKR
-connection needed for historical data, no pacing limit to think about, a
-scan finishes in under a second instead of tens of minutes.
+Checking freshness is a local SQLite read, so a poll cycle where nothing
+is behind costs zero IBKR requests. In practice: the first run of a new
+day does the full pacing-limited pass across every ticker that's fallen
+behind (up to the familiar ~15-20 minutes if starting from a cold cache),
+and every cycle after that for the rest of the day finds nothing to do
+and goes straight back to sleep.
 
 RUNNING IT
 ----------
@@ -35,19 +44,7 @@ RUNNING IT
 Leave it running (a terminal window, or start it alongside TWS/IB
 Gateway each morning). Ctrl+C stops it cleanly. combined_scanner.py will
 refuse to run and tell you to start this first if the cache looks stale
-(see MAX_STALE_DAYS in scanner_config.py), so there's no risk of silently
-scanning on old data if you forget to start the daemon.
-
-A HONEST CAVEAT
-------------------
-keepUpToDate historical data streaming is well-documented for TRADES
-bars. Whether IBKR accepts it the same way for OPTION_IMPLIED_VOLATILITY
-bars specifically hasn't been tested against a live account here. If you
-see the IV subscription for a symbol fail or never update while the price
-subscription for the same symbol works fine, that's the thing to flag,
-the fallback in that case is restarting the daemon periodically (e.g. a
-scheduled restart every morning) to force a fresh IV pull rather than
-relying on it staying live all day.
+(see MAX_STALE_DAYS in scanner_config.py).
 """
 
 from __future__ import annotations
@@ -67,67 +64,65 @@ except ImportError:
     sys.exit(1)
 
 
-def _make_price_handler(conn, ticker: str):
-    def _on_update(bars, has_new_bar):
-        bar = bars[-1]
-        cache.upsert_price_bar(
-            conn, ticker, cache.bar_date_str(bar.date),
-            bar.open, bar.high, bar.low, bar.close, bar.volume,
-        )
-    return _on_update
-
-
-def _make_iv_handler(conn, ticker: str):
-    def _on_update(bars, has_new_bar):
-        bar = bars[-1]
-        cache.upsert_iv_bar(conn, ticker, cache.bar_date_str(bar.date), bar.close)
-    return _on_update
-
-
-def subscribe_ticker(ib: IB, conn, ticker: str, active_subscriptions: list) -> None:
-    """Open the two standing subscriptions for one ticker (price + IV),
-    backfill the cache with whatever history comes back immediately, and
-    wire up the callback that keeps writing to the cache as new bars
-    arrive for as long as this process runs."""
+def refresh_ticker(ib: IB, conn, ticker: str, needs: dict) -> None:
+    """Re-fetch whichever of price/IV history is actually behind for this
+    ticker, and upsert the full returned series into the cache. A plain
+    one-shot request, no keepUpToDate, this is the exact call the
+    standalone scanners already proved works on delayed data."""
     contract = Stock(ticker, "SMART", "USD")
     ib.qualifyContracts(contract)
 
-    su.pace_request()
-    price_bars = ib.reqHistoricalData(
-        contract,
-        endDateTime="",
-        durationStr=cfg.LOOKBACK_FOR_MAS,
-        barSizeSetting="1 day",
-        whatToShow="TRADES",
-        useRTH=True,
-        formatDate=1,
-        keepUpToDate=True,
-    )
-    time.sleep(cfg.REQUEST_PAUSE_SEC)
-    for bar in price_bars:
-        cache.upsert_price_bar(
-            conn, ticker, cache.bar_date_str(bar.date),
-            bar.open, bar.high, bar.low, bar.close, bar.volume,
+    if needs["price_needs_refresh"]:
+        su.pace_request()
+        price_bars = ib.reqHistoricalData(
+            contract,
+            endDateTime="",
+            durationStr=cfg.LOOKBACK_FOR_MAS,
+            barSizeSetting="1 day",
+            whatToShow="TRADES",
+            useRTH=True,
+            formatDate=1,
         )
-    price_bars.updateEvent += _make_price_handler(conn, ticker)
-    active_subscriptions.append(("price", ticker, price_bars))
+        time.sleep(cfg.REQUEST_PAUSE_SEC)
+        for bar in price_bars:
+            cache.upsert_price_bar(
+                conn, ticker, cache.bar_date_str(bar.date),
+                bar.open, bar.high, bar.low, bar.close, bar.volume,
+            )
 
-    su.pace_request()
-    iv_bars = ib.reqHistoricalData(
-        contract,
-        endDateTime="",
-        durationStr=cfg.LOOKBACK_FOR_IV,
-        barSizeSetting="1 day",
-        whatToShow="OPTION_IMPLIED_VOLATILITY",
-        useRTH=True,
-        formatDate=1,
-        keepUpToDate=True,
-    )
-    time.sleep(cfg.REQUEST_PAUSE_SEC)
-    for bar in iv_bars:
-        cache.upsert_iv_bar(conn, ticker, cache.bar_date_str(bar.date), bar.close)
-    iv_bars.updateEvent += _make_iv_handler(conn, ticker)
-    active_subscriptions.append(("iv", ticker, iv_bars))
+    if needs["iv_needs_refresh"]:
+        su.pace_request()
+        iv_bars = ib.reqHistoricalData(
+            contract,
+            endDateTime="",
+            durationStr=cfg.LOOKBACK_FOR_IV,
+            barSizeSetting="1 day",
+            whatToShow="OPTION_IMPLIED_VOLATILITY",
+            useRTH=True,
+            formatDate=1,
+        )
+        time.sleep(cfg.REQUEST_PAUSE_SEC)
+        for bar in iv_bars:
+            cache.upsert_iv_bar(conn, ticker, cache.bar_date_str(bar.date), bar.close)
+
+
+def run_refresh_pass(ib: IB, conn) -> None:
+    needs_map = cache.tickers_needing_refresh(conn, cfg.ALL_TICKERS)
+    to_refresh = [t for t, n in needs_map.items()
+                  if n["price_needs_refresh"] or n["iv_needs_refresh"]]
+
+    if not to_refresh:
+        print(f"  Cache already current for all {len(cfg.ALL_TICKERS)} tickers. Nothing to do.")
+        return
+
+    print(f"  {len(to_refresh)} of {len(cfg.ALL_TICKERS)} tickers are behind, refreshing...")
+    for i, ticker in enumerate(to_refresh, start=1):
+        print(f"  [{i}/{len(to_refresh)}] Refreshing {ticker}...")
+        try:
+            refresh_ticker(ib, conn, ticker, needs_map[ticker])
+        except Exception as exc:
+            print(f"    -> failed to refresh {ticker}: {exc}")
+    print("  Refresh pass complete. Cache is current.")
 
 
 def main():
@@ -140,36 +135,19 @@ def main():
 
     conn = cache.get_connection()
 
-    print(f"\nSubscribing to {len(cfg.ALL_TICKERS)} unique tickers "
-          f"({len(cfg.ALL_TICKERS) * 2} historical data requests total, "
-          f"pacing-limited the same way a scan used to be). "
-          f"This only happens once, not on every scan.\n")
-
-    active_subscriptions: list = []
-    for i, ticker in enumerate(cfg.ALL_TICKERS, start=1):
-        print(f"[{i}/{len(cfg.ALL_TICKERS)}] Subscribing {ticker}...")
-        try:
-            subscribe_ticker(ib, conn, ticker, active_subscriptions)
-        except Exception as exc:
-            print(f"  -> failed to subscribe {ticker}: {exc}")
-
-    print(f"\n{len(active_subscriptions)} live subscriptions open. Cache is warm.")
-    print("Leave this running and use combined_scanner.py to scan anytime.")
-    print("Press Ctrl+C to stop the daemon.\n")
+    print(f"\nWatching {len(cfg.ALL_TICKERS)} unique tickers. Checking every "
+          f"{cfg.DAEMON_REFRESH_INTERVAL_SEC // 60} minutes for anything behind.")
+    print("Press Ctrl+C to stop.\n")
 
     try:
         while True:
-            ib.sleep(30)
             timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"[{timestamp}] daemon alive, {len(active_subscriptions)} subscriptions streaming.")
+            print(f"[{timestamp}] Checking cache...")
+            run_refresh_pass(ib, conn)
+            time.sleep(cfg.DAEMON_REFRESH_INTERVAL_SEC)
     except KeyboardInterrupt:
         print("\nStopping daemon...")
     finally:
-        for _kind, _ticker, bars in active_subscriptions:
-            try:
-                ib.cancelHistoricalData(bars)
-            except Exception:
-                pass
         conn.close()
         ib.disconnect()
         print("Daemon stopped. The cache keeps whatever data it already has, "
