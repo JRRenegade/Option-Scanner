@@ -76,50 +76,15 @@ fetching data separately for each strategy meant repeating the same IBKR
 request over and over. The cache means every unique ticker (69 today) is
 fetched once, ever, not once per strategy per run.
 
-## One-time setup
+## Getting started
 
-1. Install IB Gateway (lighter) or Trader Workstation (TWS) and log in.
-   A paper account works fine for market data / screening purposes.
-2. In TWS/Gateway: **File → Global Configuration → API → Settings**
-   - Check "Enable ActiveX and Socket Clients"
-   - Either add `127.0.0.1` to Trusted IPs, or check "Allow connections
-     from localhost only"
-   - Note the socket port: TWS live `7496`, TWS paper `7497`, Gateway
-     live `4001`, Gateway paper `4002`
-3. Install Python dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-4. Open `scanner/scanner_config.py` and confirm `IB_PORT` matches your
-   setup, plus edit `CREDIT_TICKERS`, `DEBIT_TICKERS`, `COVERED_TICKERS`,
-   `LEAPS_TICKERS`, and `SHARES_OWNED` to match your own watchlists and
-   positions. This is the only file you should need to touch.
-
-## Running it
-
-```
-cd scanner
-
-# Start this first, leave it running (its own terminal window,
-# or launched alongside TWS/Gateway each morning)
-python market_data_daemon.py
-
-# Then, any time you want a scan:
-python combined_scanner.py
-```
-
-The first time the daemon runs against a cold cache, catching up every
-ticker respects IBKR's pacing limit (~60 historical data requests per
-rolling 10 minutes), so with 69 tickers it can take roughly 15-20
-minutes. After that, most poll cycles find nothing behind and finish
-instantly, no more waiting.
-
-`combined_scanner.py` prints results to the terminal and saves, next to
-itself:
-- `credit_spread_scan_<date>.csv`
-- `debit_spread_scan_<date>.csv`
-- `covered_call_scan_<date>.csv` and a formatted `covered_call_scan_<date>.xlsx`
-- `leaps_scan_<date>.csv`
+For the step-by-step walkthrough — first-time setup on a new machine, and
+what your day-to-day routine looks like after that — see
+[GETTING_STARTED.md](GETTING_STARTED.md). Short version: one-time setup
+installs IBKR and the Python dependencies and points `scanner_config.py`
+at your watchlists; after that, each day you start
+`market_data_daemon.py` and leave it running, then run
+`combined_scanner.py` whenever you want a scan.
 
 ## The checklist tool
 
