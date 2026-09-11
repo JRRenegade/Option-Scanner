@@ -101,11 +101,17 @@ the day — it's just reading the local cache, not talking to IBKR.
 **4. Check your results.**
 
 The scan prints its findings straight to the terminal, and also saves,
-next to itself:
-- `credit_spread_scan_<date>.csv`
-- `debit_spread_scan_<date>.csv`
-- `covered_call_scan_<date>.csv` and a formatted `covered_call_scan_<date>.xlsx`
-- `leaps_scan_<date>.csv`
+next to itself, both a raw `.csv` and a formatted, color-coded `.xlsx`
+for each strategy:
+- `credit_spread_scan_<date>.csv` and `credit_spread_scan_<date>.xlsx`
+- `debit_spread_scan_<date>.csv` and `debit_spread_scan_<date>.xlsx`
+- `covered_call_scan_<date>.csv` and `covered_call_scan_<date>.xlsx`
+- `leaps_scan_<date>.csv` and `leaps_scan_<date>.xlsx`
+
+The `.xlsx` is the one worth opening: it's sorted, color-codes the
+scores and flags, and wraps the reason text so nothing gets cut off.
+The `.csv` is there if you ever want to pull the raw numbers into
+something else.
 
 **5. At the end of the day, stop the daemon with `Ctrl+C`** in its
 terminal window (or just leave it running overnight if that's easier —

@@ -24,13 +24,15 @@ it isn't subject to the pacing limit), made only for the 8 covered call
 tickers. If IBKR isn't reachable for that, the scan still runs, ex-div
 just shows "n/a" for everyone, same graceful fallback as before.
 
-OUTPUT FILES (unchanged from the standalone scripts / the old combined
-version that used to fetch its own data)
+OUTPUT FILES
 -------------------------------------------------------------------------
-  credit_spread_scan_<date>.csv
-  debit_spread_scan_<date>.csv
-  covered_call_scan_<date>.csv   (+ matching .xlsx, same formatting)
-  leaps_scan_<date>.csv
+Every scan now saves both an unrefined .csv (the raw scored rows, easy to
+pull into anything else) and a formatted .xlsx (color-coded, wrapped
+text, frozen header, autofilter -- meant to actually be read):
+  credit_spread_scan_<date>.csv   (+ matching .xlsx)
+  debit_spread_scan_<date>.csv    (+ matching .xlsx)
+  covered_call_scan_<date>.csv    (+ matching .xlsx)
+  leaps_scan_<date>.csv           (+ matching .xlsx)
 
 RUNNING IT
 ----------
@@ -492,10 +494,104 @@ def write_excel_report(results: pd.DataFrame, out_path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Formatted Excel export for the three flag-style scans (Credit Spread,
+# Debit Spread, LEAPS) -- same visual language as the covered call report
+# above (dark header, wrapped text, frozen panes, autofilter), with
+# color-coding tuned to what these three actually show: Bull/Bear Score
+# and Setup Flag instead of a Verdict and three Why columns.
+# ---------------------------------------------------------------------------
+
+_FLAG_COLUMN_WIDTHS = {
+    "Ticker": 10, "Close": 10, "Green Day": 10, "RSI": 8,
+    "20MA vs 50MA": 14, "50MA vs 200MA": 14, "% vs 200MA": 12,
+    "Bollinger": 14, "%B": 8, "Vol vs 20D Avg": 14, "Volume Spike": 12,
+    "IV Rank": 10, "Bull Score": 11, "Bull Reasons": 46,
+    "Bear Score": 11, "Bear Reasons": 46, "Setup Flag": 24,
+}
+
+_FLAG_COMMENTS = {
+    "Bull Score": "How many of the 4 bullish conditions hit (see Bull Reasons). 3+ triggers the Setup Flag.",
+    "Bear Score": "How many of the 4 bearish conditions hit (see Bear Reasons). 3+ triggers the Setup Flag.",
+    "Setup Flag": "Set when Bull Score or Bear Score reaches 3 out of 4. A 2-of-4 near-miss is called out in the terminal output but not flagged here.",
+}
+
+
+def write_flag_scan_excel_report(results: pd.DataFrame, out_path: str, sheet_title: str) -> None:
+    """Write the formatted .xlsx version of a Credit Spread / Debit Spread /
+    LEAPS scan: color-coded Bull/Bear Score and Setup Flag cells, wrapped
+    text, frozen header row + Ticker column, and an autofilter."""
+    display_cols = [c for c in results.columns if not c.startswith("_")]
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_title
+
+    header_font = Font(name="Arial", bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="44546A")
+    header_align = Alignment(wrap_text=True, vertical="center", horizontal="center")
+    body_align = Alignment(wrap_text=True, vertical="top")
+
+    for col_idx, col_name in enumerate(display_cols, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=col_name)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        if col_name in _FLAG_COMMENTS:
+            cell.comment = Comment(_FLAG_COMMENTS[col_name], "Combined Scanner")
+
+    for row_idx, (_, row) in enumerate(results.iterrows(), start=2):
+        for col_idx, col_name in enumerate(display_cols, start=1):
+            value = row[col_name]
+            if isinstance(value, float) and np.isnan(value):
+                value = "n/a"
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.font = Font(name="Arial")
+            cell.alignment = body_align
+
+        for score_col in ("Bull Score", "Bear Score"):
+            if score_col in display_cols:
+                score = row.get(score_col)
+                if isinstance(score, (int, float)) and not (isinstance(score, float) and np.isnan(score)):
+                    col_idx = display_cols.index(score_col) + 1
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    if score >= 3:
+                        cell.fill = _STATUS_FILL["good"]
+                        cell.font = _STATUS_FONT["good"]
+                    elif score == 2:
+                        cell.fill = _STATUS_FILL["neutral"]
+                        cell.font = _STATUS_FONT["neutral"]
+
+        if "Setup Flag" in display_cols:
+            flag = row.get("Setup Flag")
+            col_idx = display_cols.index("Setup Flag") + 1
+            cell = ws.cell(row=row_idx, column=col_idx)
+            if isinstance(flag, str) and flag.startswith("ERROR"):
+                cell.fill = _STATUS_FILL["bad"]
+                cell.font = _STATUS_FONT["bad"]
+            elif isinstance(flag, str) and flag != "-":
+                cell.fill = _STATUS_FILL["good"]
+                cell.font = Font(name="Arial", bold=True, color="006100")
+
+    for col_idx, col_name in enumerate(display_cols, start=1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = _FLAG_COLUMN_WIDTHS.get(col_name, 16)
+
+    ws.row_dimensions[1].height = 46
+    for row_idx in range(2, len(results) + 2):
+        ws.row_dimensions[row_idx].height = 60
+
+    ws.freeze_panes = "B2"
+
+    last_col = get_column_letter(len(display_cols))
+    ws.auto_filter.ref = f"A1:{last_col}{len(results) + 1}"
+
+    wb.save(out_path)
+
+
+# ---------------------------------------------------------------------------
 # Shared report printing/saving for the three flag-style scanners
 # ---------------------------------------------------------------------------
 
-def report_flag_scan(results: pd.DataFrame, title: str, flag_values: list, out_prefix: str) -> None:
+def report_flag_scan(results: pd.DataFrame, title: str, flag_values: list, out_prefix: str, sheet_title: str) -> None:
     if results.empty:
         print(f"\n{title} -- {dt.date.today().isoformat()}: no tickers to scan.")
         return
@@ -531,9 +627,13 @@ def report_flag_scan(results: pd.DataFrame, title: str, flag_values: list, out_p
             score = max(r["Bull Score"], r["Bear Score"])
             print(f"  {r['Ticker']}: {score}/4 {side} -- {reasons}")
 
-    out_path = f"{out_prefix}_{dt.date.today().isoformat()}.csv"
-    saved_path = su.save_with_retry(lambda p: results.to_csv(p, index=False), out_path)
-    print(f"\nSaved full results to {saved_path}")
+    csv_path = f"{out_prefix}_{dt.date.today().isoformat()}.csv"
+    csv_saved_path = su.save_with_retry(lambda p: results.to_csv(p, index=False), csv_path)
+    print(f"\nSaved raw data to {csv_saved_path}")
+
+    xlsx_path = f"{out_prefix}_{dt.date.today().isoformat()}.xlsx"
+    xlsx_saved_path = su.save_with_retry(lambda p: write_flag_scan_excel_report(results, p, sheet_title), xlsx_path)
+    print(f"Saved formatted report to {xlsx_saved_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -593,6 +693,7 @@ def main():
         "Credit spread scan",
         ["PUT credit spread", "CALL credit spread"],
         "credit_spread_scan",
+        "Credit Spread Scan",
     )
 
     # --- Debit spread ----------------------------------------------------
@@ -610,6 +711,7 @@ def main():
         "Debit spread scan",
         ["BULL CALL debit spread", "BEAR PUT debit spread"],
         "debit_spread_scan",
+        "Debit Spread Scan",
     )
 
     # --- LEAPS -------------------------------------------------------------
@@ -627,6 +729,7 @@ def main():
         "LEAPS scan",
         ["BULLISH LEAP (long call)", "BEARISH LEAP (long put)"],
         "leaps_scan",
+        "LEAPS Scan",
     )
 
     # --- Covered calls (needs a brief live IBKR connection for ex-div) ---
