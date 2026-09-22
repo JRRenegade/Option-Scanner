@@ -70,11 +70,12 @@ looks stale (the daemon isn't running, or hasn't updated recently
 enough), it refuses to scan and tells you exactly which tickers are
 behind rather than silently scoring on old data.
 
-Why bother with a cache at all: the four strategies' watchlists overlap
-heavily (credit and debit spreads share all 28 tickers, for instance), so
-fetching data separately for each strategy meant repeating the same IBKR
-request over and over. The cache means every unique ticker (69 today) is
-fetched once, ever, not once per strategy per run.
+Why bother with a cache at all: Credit Spreads, Debit Spreads, and LEAPS
+all score the same `DIRECTIONAL_TICKERS` watchlist now, and Covered Calls
+adds a handful more, so fetching data separately for each strategy meant
+repeating the same IBKR request over and over. The cache means every
+unique ticker (69 today) is fetched once, ever, not once per strategy per
+run.
 
 ## Getting started
 
@@ -85,6 +86,11 @@ installs IBKR and the Python dependencies and points `scanner_config.py`
 at your watchlists; after that, each day you start
 `market_data_daemon.py` and leave it running, then run
 `combined_scanner.py` whenever you want a scan.
+
+If Claude ever hands you a file update it couldn't commit itself (its
+bridge to your computer can only write files, not run commands, if the
+connection drops), see [GIT_WORKFLOW.md](GIT_WORKFLOW.md) for the steps
+to push it to GitHub yourself.
 
 ## The checklist tool
 

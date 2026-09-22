@@ -89,14 +89,29 @@ MAX_FILENAME_ATTEMPTS = 20   # how many _1, _2, ... suffixes to try before givin
 
 
 # ---------------------------------------------------------------------------
-# CREDIT SPREAD
+# DIRECTIONAL STRATEGIES' SHARED WATCHLIST (Credit Spread, Debit Spread, LEAPS)
 # ---------------------------------------------------------------------------
+# These three strategies all score the same watchlist now, one list instead
+# of three, since Credit and Debit were already identical and there's no
+# real reason LEAPS needs a different universe to scan. Each strategy still
+# has its own thresholds below (CREDIT_*, DEBIT_*, LEAPS_*) that decide what
+# counts as a setup for it -- edit this list to change what all three scan,
+# edit those to change how each one scores it.
 
-CREDIT_TICKERS = [
+DIRECTIONAL_TICKERS = [
     "XLK", "XLV", "XLE", "XLB", "XLY", "XLF", "XLP", "XLC", "XLI", "XLRE",
     "XLU", "SPY", "GLD", "SLV", "IGV", "XBI", "TAN", "SMH", "XME", "OIH",
     "GDX", "IYT", "ITA", "JETS", "XHB", "KRE", "XOP", "XRT",
+    "SOFI", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "IWM",
+    "DIA", "V", "JPM", "HD", "COST", "AVGO", "AMD", "INTC", "CSCO", "DELL",
+    "LMT", "CRM", "ADP", "NOW", "NFLX", "ORCL", "PLTR", "JNJ", "PG", "CVX",
+    "XOM", "LOW", "ULTA", "FTNT", "ADM", "DRI", "NVO", "TSM", "MRK", "ADBE",
 ]
+
+
+# ---------------------------------------------------------------------------
+# CREDIT SPREAD
+# ---------------------------------------------------------------------------
 
 CREDIT_RSI_OVERSOLD = 35
 CREDIT_RSI_OVERBOUGHT = 65
@@ -106,13 +121,6 @@ CREDIT_IV_RANK_ELEVATED = 50   # credit spreads want IV Rank above this
 # ---------------------------------------------------------------------------
 # DEBIT SPREAD (mirror image of credit spreads)
 # ---------------------------------------------------------------------------
-
-DEBIT_TICKERS = [
-    "XLK", "XLV", "XLE", "XLB", "XLY", "XLF", "XLP", "XLC", "XLI", "XLRE",
-    "XLU", "SPY", "GLD", "SLV", "IGV", "XBI", "TAN", "SMH", "XME", "OIH",
-    "GDX", "IYT", "ITA", "JETS", "XHB", "KRE", "XOP", "XRT",
-]
-# Same watchlist as CREDIT_TICKERS today -- edit either independently if you want them to diverge.
 
 DEBIT_RSI_BULL_MIN = 45
 DEBIT_RSI_BULL_MAX = 70
@@ -154,14 +162,6 @@ COVERED_BREAKOUT_RSI = 60
 # LEAPS
 # ---------------------------------------------------------------------------
 
-LEAPS_TICKERS = [
-    "SOFI", "SPY", "QQQ", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA",
-    "IWM", "DIA", "XLK", "XLF", "V", "JPM", "HD", "COST", "AVGO", "AMD",
-    "INTC", "CSCO", "DELL", "LMT", "CRM", "ADP", "NOW", "NFLX", "ORCL",
-    "PLTR", "JNJ", "PG", "CVX", "XOM", "LOW", "ULTA", "FTNT", "ADM", "DRI",
-    "NVO", "TSM", "MRK", "ADBE",
-]
-
 LEAPS_RSI_BULL_MIN = 45
 LEAPS_RSI_BULL_MAX = 70
 LEAPS_RSI_BEAR_MIN = 30
@@ -183,4 +183,4 @@ def _dedup_preserve_order(*lists) -> list:
     return seen
 
 
-ALL_TICKERS = _dedup_preserve_order(CREDIT_TICKERS, DEBIT_TICKERS, COVERED_TICKERS, LEAPS_TICKERS)
+ALL_TICKERS = _dedup_preserve_order(DIRECTIONAL_TICKERS, COVERED_TICKERS)

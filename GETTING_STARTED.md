@@ -47,8 +47,9 @@ pip install -r requirements.txt
 **5. Open `scanner/scanner_config.py` and check three things:**
 
 - `IB_PORT` matches the port you wrote down in step 2
-- `CREDIT_TICKERS`, `DEBIT_TICKERS`, `COVERED_TICKERS`, and `LEAPS_TICKERS`
-  are the watchlists you actually want
+- `DIRECTIONAL_TICKERS` (scanned by Credit Spreads, Debit Spreads, and
+  LEAPS together) and `COVERED_TICKERS` (Covered Calls) are the
+  watchlists you actually want
 - `SHARES_OWNED` reflects what you actually hold, if you're using covered
   calls
 

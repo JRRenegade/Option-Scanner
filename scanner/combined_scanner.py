@@ -680,7 +680,7 @@ def main():
 
     # --- Credit spread -------------------------------------------------
     credit_rows = []
-    for symbol in cfg.CREDIT_TICKERS:
+    for symbol in cfg.DIRECTIONAL_TICKERS:
         if symbol in read_errors:
             credit_rows.append({"Ticker": symbol, "Setup Flag": f"ERROR: {read_errors[symbol]}"})
             continue
@@ -698,7 +698,7 @@ def main():
 
     # --- Debit spread ----------------------------------------------------
     debit_rows = []
-    for symbol in cfg.DEBIT_TICKERS:
+    for symbol in cfg.DIRECTIONAL_TICKERS:
         if symbol in read_errors:
             debit_rows.append({"Ticker": symbol, "Setup Flag": f"ERROR: {read_errors[symbol]}"})
             continue
@@ -716,7 +716,7 @@ def main():
 
     # --- LEAPS -------------------------------------------------------------
     leaps_rows = []
-    for symbol in cfg.LEAPS_TICKERS:
+    for symbol in cfg.DIRECTIONAL_TICKERS:
         if symbol in read_errors:
             leaps_rows.append({"Ticker": symbol, "Setup Flag": f"ERROR: {read_errors[symbol]}"})
             continue
