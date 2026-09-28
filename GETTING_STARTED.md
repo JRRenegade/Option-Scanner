@@ -129,9 +129,18 @@ that browser as you go.
 ## If something looks wrong
 
 **The scanner refuses to run and lists tickers as stale.** This means the
-cache is behind and it doesn't want to score on old data. Start (or check
-on) `market_data_daemon.py` and let it catch up, then run the scanner
-again.
+cache is behind and it doesn't want to score on old data. Usually the fix
+is to start (or check on) `market_data_daemon.py` and let it catch up,
+then run the scanner again. Weekends are already accounted for (Friday's
+data reads as current on a Monday), so if you're seeing this on an
+ordinary weekday, the daemon most likely just needs to run.
+
+If it's a market holiday, though, there's genuinely no new data for the
+daemon to fetch, and the scanner will offer a prompt: type `OVERRIDE` (or
+whatever you've set `STALE_OVERRIDE_WORD` to in `scanner_config.py`) to
+scan anyway. Only do this when you're actually sure it's a holiday and
+not a daemon that's quietly stopped working -- the override doesn't
+check anything, it just trusts you.
 
 **The daemon shows errors for every single ticker.** That usually means
 either TWS/Gateway isn't running, isn't logged in, or the port in

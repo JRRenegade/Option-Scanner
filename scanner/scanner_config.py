@@ -49,13 +49,21 @@ DB_PATH = "market_data.db"   # SQLite file, created automatically next to these 
 LOOKBACK_FOR_MAS = "260 D"   # need ~252 trading days for a 200-day MA (the daemon's initial backfill)
 LOOKBACK_FOR_IV = "1 Y"      # window IV Rank is computed over (the daemon's initial backfill)
 
-# How many calendar days old the cache's most recent bar is allowed to be
+# How many TRADING days old the cache's most recent bar is allowed to be
 # before a scan refuses to run and tells you to start the daemon instead.
-# 1 gives a little slack for "the daemon hasn't picked up this morning's
-# bar yet" without accepting genuinely stale data. This is a simple
-# weekday-aware check, not holiday-aware, so it can be off by a day around
-# market holidays. Bump it if that gets annoying.
+# Weekends are free -- Friday's data checked on a Monday counts as 0 days
+# stale, not 3 -- so 1 gives a little slack for "the daemon hasn't picked
+# up today's bar yet" without accepting genuinely stale data. Market
+# holidays aren't accounted for (there's no calendar behind this, just
+# Mon-Fri arithmetic), so a single-weekday holiday can still trip this --
+# that's what STALE_OVERRIDE_WORD below is for.
 MAX_STALE_DAYS = 1
+
+# If a scan refuses to run because the cache looks stale, it'll show this
+# word and let you type it to proceed anyway -- for the case where you can
+# see it's just a market holiday and the data really is current. This is a
+# manual override, not automatic: you're confirming it, not the script.
+STALE_OVERRIDE_WORD = "OVERRIDE"
 
 
 # ---------------------------------------------------------------------------

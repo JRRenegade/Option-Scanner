@@ -155,14 +155,36 @@ def _last_expected_trading_day(today: dt.date) -> dt.date:
     return d
 
 
+def _weekdays_elapsed(latest: dt.date, today: dt.date) -> int:
+    """Count of Mon-Fri days strictly after latest, up to and including
+    today. Weekends are skipped entirely rather than counted, so crossing
+    one costs nothing: Friday's data checked on Monday is 1 weekday
+    elapsed (Monday itself), not the 3 calendar days naive subtraction
+    would give you. This is what fixes the "Monday looks 3 days stale"
+    bug -- MAX_STALE_DAYS now means trading days, not calendar days."""
+    if today <= latest:
+        return 0
+    n = 0
+    d = latest
+    while d < today:
+        d += dt.timedelta(days=1)
+        if d.weekday() < 5:
+            n += 1
+    return n
+
+
 def is_fresh(latest_date_str: str | None, max_stale_days: int = cfg.MAX_STALE_DAYS) -> bool:
-    """True if latest_date_str is within max_stale_days of the most recent
-    weekday. None (nothing cached yet) is always stale."""
+    """True if latest_date_str is within max_stale_days *trading* days of
+    today -- weekends don't count against you, so Friday's data is 0
+    trading days stale on a Monday, not 3. Still not holiday-aware (a
+    single-weekday market holiday can still trip this, since there's no
+    way to tell "the market was closed" from "the daemon broke" using
+    date math alone -- that's what the scanner's stale-data override
+    prompt is for). None (nothing cached yet) is always stale."""
     if not latest_date_str:
         return False
     latest = dt.date.fromisoformat(latest_date_str[:10])
-    expected = _last_expected_trading_day(dt.date.today())
-    return (expected - latest).days <= max_stale_days
+    return _weekdays_elapsed(latest, dt.date.today()) <= max_stale_days
 
 
 def check_freshness(conn: sqlite3.Connection, tickers: list) -> dict:

@@ -68,7 +68,14 @@ makes no historical data requests at all, so there's no IBKR pacing
 limit to think about, a scan finishes in under a second. If the cache
 looks stale (the daemon isn't running, or hasn't updated recently
 enough), it refuses to scan and tells you exactly which tickers are
-behind rather than silently scoring on old data.
+behind rather than silently scoring on old data. The freshness check is
+trading-day aware, so a weekend never counts against you -- Friday's data
+is current on a Monday morning, not "3 days stale." It's still not
+holiday-aware, since there's no calendar behind it, just weekday
+arithmetic, so a market holiday can still trigger it; when that happens
+you'll be offered a manual override (type `OVERRIDE`, or whatever you've
+set `STALE_OVERRIDE_WORD` to) to proceed once you've confirmed it's just
+a holiday and not a dead daemon.
 
 Why bother with a cache at all: Credit Spreads, Debit Spreads, and LEAPS
 all score the same `DIRECTIONAL_TICKERS` watchlist now, and Covered Calls

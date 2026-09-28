@@ -652,8 +652,24 @@ def _abort_if_stale(conn) -> None:
         iv_msg = info["iv_date"] or "never cached"
         print(f"  {ticker}: price last {price_msg}, IV last {iv_msg}")
     print(f"\n{len(stale)} of {len(cfg.ALL_TICKERS)} tickers are stale (more than "
-          f"{cfg.MAX_STALE_DAYS} day(s) old).")
+          f"{cfg.MAX_STALE_DAYS} trading day(s) behind).")
     print("Start market_data_daemon.py, let it catch up, then run this again.")
+
+    # Weekends are already accounted for, so this usually means the daemon
+    # genuinely needs to catch up -- but a market holiday looks identical
+    # to a broken daemon from date math alone, so if you can see it's a
+    # holiday and this data really is current, you can say so here rather
+    # than waiting on the daemon for nothing.
+    print(f"\nIf this is a market holiday and you're confident this data is genuinely "
+          f"current, type {cfg.STALE_OVERRIDE_WORD} to scan anyway:")
+    try:
+        answer = input("> ").strip()
+    except EOFError:
+        answer = ""
+    if answer.upper() == cfg.STALE_OVERRIDE_WORD.upper():
+        print(f"\nOverriding -- scanning with the data as-is ({len(stale)} ticker(s) flagged stale above).")
+        return
+
     sys.exit(1)
 
 
